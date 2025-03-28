@@ -1,0 +1,7 @@
+<h2>文件列表</h2>
+<ul>
+    {% for file in site.data.file_list %}
+    <li><a href="https://github.com/{{ site.github.username }}/{{ site.github.reponame }}/blob/main/{{ file }}">{{ file
+            }}</a></li>
+    {% endfor %}
+</ul>
