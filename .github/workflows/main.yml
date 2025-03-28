@@ -1,0 +1,36 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    concurrency: ci-${{ github.ref }}
+    runs-on: Ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Generate file list
+        run: |
+          git ls-tree -r HEAD --name-only > file_list.txt
+
+      - name: Convert file list to JSON
+        run: |
+          jq -R -s 'split("\n") | map(select(. != ""))' file_list.txt > _data/file_list.json
+
+      - name: Build
+        run: |
+          bundle install
+          bundle exec jekyll build
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          folder: _site
