@@ -20,7 +20,10 @@ jobs:
       - name: 创建数据目录
         run: |
           mkdir -p _data
-      - name: Generate file list
+      - name: 生成文件列表
         run: |
-          git ls-tree -r HEAD --name-only > _data/file_list.txt
+          find . -type f -print > _data/file_list.txt
+      - name: Update submodules
+        run: |
+          git submodule update --init --recursive
 
