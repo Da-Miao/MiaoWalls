@@ -16,36 +16,8 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Set up Ruby
-        uses: actions/setup-ruby@v1
-        with:
-          ruby-version: '3.0'
-
-      - name: Install Bundler
-        run: gem install bundler
 
       - name: Generate file list
         run: |
           git ls-tree -r HEAD --name-only > file_list.txt
 
-      - name: Create data directory if it doesn't exist
-        run: |
-          mkdir -p _data
-
-      - name: Convert file list to JSON
-        run: |
-          jq -R -s 'split("\n") | map(select(. != ""))' file_list.txt > _data/file_list.json
-
-      - name: Install dependencies
-        run: |
-          bundle install
-
-      - name: Build
-        run: |
-          bundle exec jekyll build
-
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          folder: _site
