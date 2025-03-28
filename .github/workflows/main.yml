@@ -17,6 +17,9 @@ jobs:
           fetch-depth: 0
 
 
+      - name: 创建数据目录
+        run: |
+          mkdir -p _data
       - name: Generate file list
         run: |
           git ls-tree -r HEAD --name-only > _data/file_list.txt
