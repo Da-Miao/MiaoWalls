@@ -7,30 +7,82 @@ on:
 
 jobs:
   generate-thumbnails:
-    container:
-      image: dpokidov/imagemagick:7.1.1-5
-      options: --entrypoint /bin/bash
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install HEIC dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libheif-dev \
+            libde265-dev \
+            libjpeg-turbo8-dev \
+            libpng-dev \
+            libtiff-dev \
+            libwebp-dev \
+            cmake \
+            ninja-build \
+            git
+
+      - name: Build and install libheif from source
+        run: |
+          git clone https://github.com/strukturag/libheif.git
+          cd libheif
+          mkdir build
+          cd build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+          ninja
+          sudo ninja install
+          sudo ldconfig
+
+      - name: Install custom ImageMagick with HEIC support
+        run: |
+          wget https://imagemagick.org/archive/ImageMagick.tar.gz
+          tar xzf ImageMagick.tar.gz
+          cd ImageMagick-*
+          ./configure --with-heic=yes \
+                      --with-jpeg=yes \
+                      --with-png=yes \
+                      --with-webp=yes \
+                      --with-tiff=yes
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig /usr/local/lib
+
+      - name: Verify installation
+        run: |
+          convert -version
+          convert -list format | grep -i heic
+
       - name: Create thumbnails directory
         run: mkdir -p thumbnails
 
-      - name: Generate thumbnails
+      - name: Generate thumbnails with fallback
         run: |
           for image in walls/*; do
             if [ -f "$image" ]; then
               filename=$(basename "$image")
               output_name="${filename%.*}.jpg"
           
-              if [[ "$filename" =~ \.(heic|heif)$ ]]; then
-                echo "Processing HEIC file: $image"
-                magick "$image" -resize 300x thumbnails/"$output_name"
+              # Try ImageMagick first
+              if convert "$image" -resize 300x "thumbnails/${output_name}" 2>/dev/null; then
+                echo "Successfully processed $image with ImageMagick"
               else
-                magick "$image" -resize 300x thumbnails/"$filename"
+                # Fallback to heif-convert if ImageMagick fails
+                echo "ImageMagick failed, trying heif-convert for $image"
+                if [[ "$filename" =~ \.(heic|heif)$ ]]; then
+                  if command -v heif-convert &> /dev/null; then
+                    heif-convert "$image" "thumbnails/${output_name}"
+                    convert "thumbnails/${output_name}" -resize 300x "thumbnails/${output_name}"
+                  else
+                    echo "Error: heif-convert not available for $image"
+                  fi
+                else
+                  echo "Error: Unsupported format for $image"
+                fi
               fi
             fi
           done
