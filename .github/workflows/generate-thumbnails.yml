@@ -7,28 +7,14 @@ on:
 
 jobs:
   generate-thumbnails:
+    container:
+      image: dpokidov/imagemagick:7.1.1-5
+      options: --entrypoint /bin/bash
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install full ImageMagick with HEIC support
-        run: |
-          sudo apt-get update
-          sudo apt-get remove -y imagemagick*
-          sudo apt-get install -y build-essential libheif-dev libde265-dev
-          wget https://imagemagick.org/archive/ImageMagick.tar.gz
-          tar xvzf ImageMagick.tar.gz
-          cd ImageMagick-*
-          ./configure --with-heic=yes
-          make
-          sudo make install
-          sudo ldconfig /usr/local/lib
-
-      - name: Verify HEIC support
-        run: |
-          convert -list format | grep -i heic
 
       - name: Create thumbnails directory
         run: mkdir -p thumbnails
@@ -42,9 +28,9 @@ jobs:
           
               if [[ "$filename" =~ \.(heic|heif)$ ]]; then
                 echo "Processing HEIC file: $image"
-                convert "$image" -resize 300x thumbnails/"$output_name"
+                magick "$image" -resize 300x thumbnails/"$output_name"
               else
-                convert "$image" -resize 300x thumbnails/"$filename"
+                magick "$image" -resize 300x thumbnails/"$filename"
               fi
             fi
           done
