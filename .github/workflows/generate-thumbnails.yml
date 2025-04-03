@@ -3,7 +3,7 @@ name: Generate Thumbnails
 on:
   push:
     paths:
-      - 'walls/**'  # 只在walls目录下的文件有变更时触发
+      - 'walls/**'
 
 jobs:
   generate-thumbnails:
@@ -13,31 +13,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies with HEIC support
+      - name: Install full ImageMagick with HEIC support
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick libheif-dev libde265-dev heif-gdk-pixbuf heif-thumbnailer
-          # 确保ImageMagick有HEIC支持
-          sudo sed -i '/<policy domain="coder" rights="none" pattern="HEIC" \/>/d' /etc/ImageMagick-6/policy.xml
+          sudo apt-get remove -y imagemagick*
+          sudo apt-get install -y build-essential libheif-dev libde265-dev
+          wget https://imagemagick.org/archive/ImageMagick.tar.gz
+          tar xvzf ImageMagick.tar.gz
+          cd ImageMagick-*
+          ./configure --with-heic=yes
+          make
+          sudo make install
+          sudo ldconfig /usr/local/lib
+
+      - name: Verify HEIC support
+        run: |
+          convert -list format | grep -i heic
 
       - name: Create thumbnails directory
         run: mkdir -p thumbnails
 
-      - name: Generate thumbnails (including HEIC)
+      - name: Generate thumbnails
         run: |
           for image in walls/*; do
             if [ -f "$image" ]; then
               filename=$(basename "$image")
-              extension="${filename##*.}"
-              output_name="${filename%.*}.jpg"  # 统一输出为jpg格式
+              output_name="${filename%.*}.jpg"
           
-              # 处理HEIC/HEIF文件
-              if [[ "$extension" =~ ^(heic|heif)$ ]]; then
+              if [[ "$filename" =~ \.(heic|heif)$ ]]; then
+                echo "Processing HEIC file: $image"
                 convert "$image" -resize 300x thumbnails/"$output_name"
-                echo "Converted HEIC to JPG thumbnail: $image"
               else
-                convert "$image" -resize 300x thumbnails/"$output_name"
-                echo "Generated thumbnail for $image"
+                convert "$image" -resize 300x thumbnails/"$filename"
               fi
             fi
           done
