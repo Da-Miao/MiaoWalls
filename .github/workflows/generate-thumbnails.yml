@@ -13,19 +13,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up ImageMagick
-        run: sudo apt-get install -y imagemagick
+      - name: Install dependencies with HEIC support
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libheif-dev libde265-dev heif-gdk-pixbuf heif-thumbnailer
+          # 确保ImageMagick有HEIC支持
+          sudo sed -i '/<policy domain="coder" rights="none" pattern="HEIC" \/>/d' /etc/ImageMagick-6/policy.xml
 
       - name: Create thumbnails directory
         run: mkdir -p thumbnails
 
-      - name: Generate thumbnails
+      - name: Generate thumbnails (including HEIC)
         run: |
           for image in walls/*; do
             if [ -f "$image" ]; then
               filename=$(basename "$image")
-              convert "$image" -resize 300x thumbnails/"$filename"
-              echo "Generated thumbnail for $image"
+              extension="${filename##*.}"
+              output_name="${filename%.*}.jpg"  # 统一输出为jpg格式
+          
+              # 处理HEIC/HEIF文件
+              if [[ "$extension" =~ ^(heic|heif)$ ]]; then
+                convert "$image" -resize 300x thumbnails/"$output_name"
+                echo "Converted HEIC to JPG thumbnail: $image"
+              else
+                convert "$image" -resize 300x thumbnails/"$output_name"
+                echo "Generated thumbnail for $image"
+              fi
             fi
           done
 
