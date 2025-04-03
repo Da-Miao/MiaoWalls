@@ -1,0 +1,38 @@
+name: Generate Thumbnails
+
+on:
+  push:
+    paths:
+      - 'walls/**'  # 只在walls目录下的文件有变更时触发
+
+jobs:
+  generate-thumbnails:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up ImageMagick
+        run: sudo apt-get install -y imagemagick
+
+      - name: Create thumbnails directory
+        run: mkdir -p thumbnails
+
+      - name: Generate thumbnails
+        run: |
+          for image in walls/*; do
+            if [ -f "$image" ]; then
+              filename=$(basename "$image")
+              convert "$image" -resize 300x thumbnails/"$filename"
+              echo "Generated thumbnail for $image"
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add thumbnails/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-generated thumbnails [skip ci]"
+          git push
